@@ -7,6 +7,7 @@
 
 #include "ext.h"							// standard Max include, always required
 #include "ext_obex.h"						// required for new style Max object
+#include "ext_critical.h"
 #include "battito_max.h"
 
 #define DEFAULT_SUBDIVISION 1920
@@ -18,6 +19,7 @@ typedef struct _battito
     long subdivision;
     struct event* events;
     long length;
+    bool should_be_freed;
     void *m_outlet1;
     void *m_outlet2;
     void *m_outlet3;
@@ -51,9 +53,11 @@ void ext_main(void *r)
 void battito_int(t_battito *x, long n)
 {
     if (x->length > 0) {
+        critical_enter(0);
         long index = labs(n) % x->length;
 //        post("index: %ld", index);
         struct event event = x->events[index];
+        critical_exit(0);
         uint32_t value = event.value;
         uint32_t probability = event.probability;
     //    post("%d : %d", value, probability);
@@ -66,14 +70,16 @@ void battito_int(t_battito *x, long n)
 
 void battito_msg(t_battito *x, t_symbol *s)
 {
+    critical_enter(0);
     if (x->events != NULL) {
-//        object_post((t_object *)x, "free: %p", x->events);
+        //object_post((t_object *)x, "free: %p", x->events);
         free(x->events);
         x->events = NULL;
     }
     struct pattern pattern = transform(s->s_name, x->subdivision);
     x->events = pattern.events;
     x->length = pattern.length * x->subdivision;
+    critical_exit(0);
     outlet_int(x->m_outlet1, x->length);
 }
 
@@ -105,6 +111,7 @@ void *battito_new(t_symbol *s, long argc, t_atom *argv)
 
         x->events = NULL;
         x->length = 0;
+        x->should_be_freed = false;
         x->m_outlet1 = intout((t_object *)x);
         x->m_outlet2 = intout((t_object *)x);
         x->m_outlet3 = intout((t_object *)x);
