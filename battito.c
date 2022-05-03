@@ -54,7 +54,13 @@ void battito_int(t_battito *x, long n)
 {
     if (x->length > 0) {
         critical_enter(0);
-        long index = labs(n) % x->length;
+        //long index = labs(n) % x->length;
+	long index;
+	if (n < 0) {
+            index = (x->length + (n % x->length)) % x->length;
+        } else {
+            index = n % x->length;
+        }
 //        post("index: %ld", index);
         struct event event = x->events[index];
         critical_exit(0);
